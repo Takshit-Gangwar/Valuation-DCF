@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DCF Stock Valuation — India</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f5f5; color: #222; }
+.container { max-width: 1200px; margin: 0 auto; padding: 12px 16px; }
+
+/* Top bar */
+.top-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.top-bar h1 { font-size: 18px; font-weight: 700; margin-right: 12px; }
+.top-bar input[type=text] { padding: 6px 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 180px; }
+.top-bar button { padding: 6px 16px; font-size: 13px; border: none; border-radius: 4px; cursor: pointer; }
+.btn-primary { background: #4a8bc2; color: #fff; }
+.btn-primary:hover { background: #3a7ab0; }
+.btn-secondary { background: #6c757d; color: #fff; }
+.btn-secondary:hover { background: #5a6268; }
+.btn-sample { background: #28a745; color: #fff; }
+.btn-sample:hover { background: #218838; }
+.ticker-label { font-weight: 600; font-size: 14px; color: #555; }
+
+/* Tabs */
+.tabs { display: flex; flex-wrap: wrap; gap: 0; border-bottom: 2px solid #ddd; margin-bottom: 10px; }
+.tab-btn { padding: 8px 16px; font-size: 13px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; margin-bottom: -2px; color: #666; }
+.tab-btn:hover { color: #222; }
+.tab-btn.active { border-bottom-color: #4a8bc2; color: #222; font-weight: 600; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Cards */
+.card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; margin-bottom: 10px; }
+.card-title { font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #333; }
+.metric-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.metric { background: #f8f9fa; border-radius: 6px; padding: 8px 14px; min-width: 140px; flex: 1; }
+.metric-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+.metric-value { font-size: 18px; font-weight: 700; margin-top: 2px; }
+.metric-value.green { color: #2d7d46; }
+.metric-value.red { color: #c0392b; }
+
+/* Recommendation */
+.rec-box { padding: 10px 14px; border-radius: 6px; color: #fff; margin-bottom: 10px; }
+.rec-box.buy { background: #2d7d46; }
+.rec-box.short { background: #c0392b; }
+.rec-box.dontbuy { background: #6b6b6b; }
+.rec-action { font-size: 15px; font-weight: 700; }
+.rec-summary { font-size: 12px; margin-top: 2px; opacity: 0.9; }
+.rec-reasons { font-size: 11px; margin-top: 4px; opacity: 0.75; }
+
+/* Tables */
+table.dcf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.dcf-table th, table.dcf-table td { padding: 5px 8px; text-align: left; border-bottom: 1px solid #eee; }
+table.dcf-table th { background: #f0f4f8; font-weight: 600; position: sticky; top: 0; }
+table.dcf-table td.num { text-align: right; font-weight: 600; }
+table.val-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.val-table th, table.val-table td { padding: 5px 8px; text-align: left; border-bottom: 1px solid #eee; }
+table.val-table th { background: #f0f4f8; font-weight: 600; }
+
+/* Scenario cards */
+.scenario-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.scenario-card { flex: 1; min-width: 180px; padding: 12px; border-radius: 6px; color: #fff; }
+.scenario-card h4 { margin: 0 0 4px 0; font-size: 14px; }
+.scenario-card p { margin: 2px 0; font-size: 12px; }
+.scenario-card .dim { opacity: 0.7; font-size: 11px; }
+
+/* Sensitivity matrix table */
+table.sens-table { border-collapse: collapse; font-size: 13px; width: 100%; }
+table.sens-table th, table.sens-table td { border: 1px solid #ddd; padding: 5px 8px; text-align: center; }
+table.sens-table th { background: #f0f4f8; font-weight: 600; position: sticky; top: 0; }
+table.sens-table td.green { background: #2d7d46; color: #fff; font-weight: 600; }
+table.sens-table td.red { background: #c0392b; color: #fff; font-weight: 600; }
+
+/* Chart container */
+.chart-container { height: 320px; margin-bottom: 10px; }
+
+/* Monte Carlo */
+.mc-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.mc-controls input[type=number] { width: 100px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+
+/* Watchlist */
+.wl-controls { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.wl-controls select { padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 120px; }
+
+/* Info / Interpretation */
+.info-box { background: #eef4fa; border-left: 3px solid #4a8bc2; padding: 8px 12px; font-size: 12px; color: #444; border-radius: 0 4px 4px 0; margin-top: 8px; }
+
+/* Utility */
+.mt-2 { margin-top: 8px; }
+.mb-2 { margin-bottom: 8px; }
+.w-full { width: 100%; }
+.text-center { text-align: center; }
+.text-sm { font-size: 12px; color: #888; }
+.flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hidden { display: none; }
+
+/* Research */
+.research-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.research-section { margin-bottom: 12px; }
+.research-section h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #333; }
+</style>
+</head>
+<body>
+<div class="container" id="app">
+
+<div class="top-bar">
+  <h1>DCF Stock Valuation</h1>
+  <input type="text" id="tickerInput" placeholder="e.g. TCS" spellcheck="false">
+  <button class="btn-primary" id="calcBtn">Calculate</button>
+  <button class="btn-secondary" id="researchBtn" disabled>Research</button>
+  <button class="btn-sample" id="sampleBtn">Load Sample TCS.NS</button>
+  <span class="ticker-label" id="tickerLabel"></span>
+</div>
+
+<div class="tabs" id="tabBar"></div>
+
+<!-- Tab contents -->
+<div id="tabContent">
+  <div class="tab-content active" id="tab-dcf"></div>
+  <div class="tab-content" id="tab-scenarios"></div>
+  <div class="tab-content" id="tab-implied"></div>
+  <div class="tab-content" id="tab-sensitivity"></div>
+  <div class="tab-content" id="tab-charts"></div>
+  <div class="tab-content" id="tab-relval"></div>
+  <div class="tab-content" id="tab-montecarlo"></div>
+  <div class="tab-content" id="tab-watchlist"></div>
+  <div class="tab-content" id="tab-export"></div>
+</div>
+
+<!-- Research modal -->
+<div id="researchModal" class="hidden" style="background:#fff;border:1px solid #ddd;border-radius:6px;padding:14px;margin-top:8px;"></div>
+
+</div><!-- /container -->
+
+<script>
+"use strict";
+// ═══════════════════════════════════════════════════════════════
+// 1. CONSTANTS & STATE
+// ═══════════════════════════════════════════════════════════════
+const CURRENCY = "Rs";
+const RISK_FREE_RATE = 0.07;
+const TAX_RATE = 0.25;
+const MARKET_PREMIUM = 0.07;
+const DEFAULT_TERMINAL_G = 0.04;
+
+let state = {
+  ticker: null,
+  result: null,
+  data: null,
+  fetchedData: {},
+  mcResults: null,
+  watchlist: [],
+  watchlistData: [],
+  researchReport: null,
+};
+
+let charts = { fcf: null, mc: null };
+
+// ═══════════════════════════════════════════════════════════════
+// 2. SAMPLE DATA (TCS.NS)
+// ═══════════════════════════════════════════════════════════════
+const SAMPLE_DATA = {
+  ticker: "TCS.NS",
+  fcfs: [
+    { year: 2023, value: 388650000000 },
+    { year: 2024, value: 416640000000 },
+    { year: 2025, value: 449710000000 },
+    { year: 2026, value: 479070000000 },
+  ],
+  price: 2327.1,
+  shares: 3618087518,
+  beta: 0.289,
+  marketCap: 8419651616768,
+  totalDebt: 112829997056,
+  cash: 410799996928,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 3. FORMATTING HELPERS
+// ═══════════════════════════════════════════════════════════════
+function fmtCurrency(v, sym) {
+  if (v == null || isNaN(v)) return "--";
+  sym = sym || CURRENCY;
+  const s = sym.length > 1 ? sym + " " : sym;
+  if (Math.abs(v) >= 1e7) return s + (v / 1e7).toLocaleString("en-IN", {maxFractionDigits:2}) + " Cr";
+  if (Math.abs(v) >= 1e5) return s + (v / 1e5).toLocaleString("en-IN", {maxFractionDigits:2}) + " L";
+  return s + v.toLocaleString("en-IN", {maxFractionDigits:2});
+}
+function fmtPct(v) {
+  if (v == null || isNaN(v)) return "--";
+  return (v * 100).toFixed(1) + "%";
+}
+function fmtBig(v) {
+  if (v == null || isNaN(v)) return "--";
+  if (Math.abs(v) >= 1e7) return (v / 1e7).toFixed(2) + " Cr";
+  if (Math.abs(v) >= 1e5) return (v / 1e5).toFixed(2) + " L";
+  return v.toFixed(2);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 4. MATH: LOG-LINEAR REGRESSION
+// ═══════════════════════════════════════════════════════════════
+function estimateGrowthRate(fcfValues) {
+  const pos = fcfValues.filter(v => v > 0);
+  if (pos.length >= 3) {
+    const n = pos.length;
+    const x = pos.map((_, i) => i);
+    const logY = pos.map(v => Math.log(v));
+    const sumX = x.reduce((a, b) => a + b, 0);
+    const sumY = logY.reduce((a, b) => a + b, 0);
+    const sumXY = x.reduce((s, xi, i) => s + xi * logY[i], 0);
+    const sumX2 = x.reduce((s, xi) => s + xi * xi, 0);
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    const rate = Math.exp(slope) - 1;
+    return Math.max(-0.50, Math.min(0.50, rate));
+  }
+  if (pos.length >= 2) {
+    let sum = 0;
+    for (let i = 1; i < pos.length; i++) sum += pos[i] / pos[i-1] - 1;
+    return sum / (pos.length - 1);
+  }
+  return 0.05;
+}
+
+function projectFcfs(lastFcf, growthRate, years) {
+  const arr = [];
+  for (let i = 1; i <= years; i++) arr.push(lastFcf * Math.pow(1 + growthRate, i));
+  return arr;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 5. WACC
+// ═══════════════════════════════════════════════════════════════
+function calcWacc(beta, taxRate, debt, marketCap, rfRate, marketPremium) {
+  marketPremium = marketPremium || MARKET_PREMIUM;
+  if (marketCap && marketCap > 0) {
+    const costEquity = rfRate + (beta || 1.0) * marketPremium;
+    const costDebt = (rfRate + 0.02) * (1 - taxRate);
+    const total = marketCap + debt;
+    return (marketCap / total) * costEquity + (debt / total) * costDebt;
+  }
+  return rfRate + 0.04;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 6. DCF ENGINE
+// ═══════════════════════════════════════════════════════════════
+function runDcf(data) {
+  const fcfVals = data.fcfs.map(f => f.value);
+  const estimatedGrowth = estimateGrowthRate(fcfVals);
+  const growthRate = data.growthOverride != null ? data.growthOverride : estimatedGrowth;
+  const nYears = data.projectionYears || 5;
+  const lastFcf = fcfVals[fcfVals.length - 1];
+  const projected = projectFcfs(lastFcf, growthRate, nYears);
+
+  let wacc;
+  if (data.waccOverride != null) {
+    wacc = data.waccOverride;
+  } else {
+    wacc = calcWacc(data.beta, data.taxRate || TAX_RATE, data.totalDebt,
+                    data.marketCap, data.rfRate || RISK_FREE_RATE, data.marketPremium);
+  }
+
+  const terminalG = data.terminalGrowthRate != null ? data.terminalGrowthRate : DEFAULT_TERMINAL_G;
+  const safeTg = wacc <= terminalG ? wacc * 0.5 : terminalG;
+  const tv = projected[projected.length - 1] * (1 + safeTg) / (wacc - safeTg);
+  const pvFcfs = projected.reduce((s, fcf, i) => s + fcf / Math.pow(1 + wacc, i + 1), 0);
+  const pvTv = tv / Math.pow(1 + wacc, nYears);
+  const ev = pvFcfs + pvTv;
+  const equity = ev - data.totalDebt + data.cash;
+  const intrinsic = data.shares > 0 ? equity / data.shares : null;
+  const upside = (intrinsic != null && data.price) ? intrinsic / data.price - 1 : null;
+
+  return {
+    growthRate, estimatedGrowth, wacc, projectedFcfs: projected,
+    terminalValue: tv, pvFcfs, pvTv, enterpriseValue: ev, equityValue: equity,
+    intrinsicValue: intrinsic, currentPrice: data.price, upside,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 7. RECOMMENDATION
+// ═══════════════════════════════════════════════════════════════
+function analyze(result, data) {
+  const reasons = [];
+  const upside = result.upside;
+  let action = "INCONCLUSIVE";
+  let confidence = "LOW";
+
+  if (upside != null && upside > 0.15) {
+    action = "BUY";
+    reasons.push(`Upside of ${(upside*100).toFixed(1)}% exceeds 15% margin of safety`);
+  } else if (upside != null && upside < -0.15) {
+    action = "SHORT";
+    reasons.push(`Downside of ${(upside*100).toFixed(1)}% exceeds 15% margin of safety`);
+  } else {
+    action = "DON'T BUY";
+    reasons.push(`Upside of ${upside != null ? (upside*100).toFixed(1)+'%' : '--'} is within ±15% margin of safety`);
+  }
+
+  // Risk adjustments
+  if (data.debtEquity != null && data.debtEquity > 0.5 && action === "BUY") {
+    confidence = "MEDIUM";
+    reasons.push("Debt/Equity above 50% — lowered confidence");
+  }
+  if (data.fcfGrowthTrend != null) {
+    reasons.push(`FCF growth trend: ${data.fcfGrowthTrend > 0 ? 'positive' : 'negative'}`);
+  }
+  if (data.beta != null && data.beta > 1.5 && action === "BUY") {
+    if (confidence !== "LOW") confidence = "LOW";
+    reasons.push("Beta above 1.5 — lowers confidence");
+  }
+
+  if (confidence === "LOW" && action !== "INCONCLUSIVE") confidence = "MEDIUM";
+  if (reasons.length === 0) reasons.push("No significant risk factors detected");
+
+  let summary;
+  if (action === "BUY") summary = `Stock is undervalued — ${(upside*100).toFixed(0)}% upside with ${(result.growthRate*100).toFixed(1)}% FCF growth`;
+  else if (action === "SHORT") summary = `Stock is overvalued — ${(Math.abs(upside)*100).toFixed(0)}% downside`;
+  else summary = "Stock is fairly valued within margin of safety";
+
+  return { action, confidence, summary, reasons };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 8. SCENARIOS
+// ═══════════════════════════════════════════════════════════════
+function runScenarios(data, result) {
+  const baseGrowth = result.estimatedGrowth || result.growthRate || 0.05;
+  const baseWacc = result.wacc;
+  const params = {
+    bull: { growth: baseGrowth * 1.5, wacc: baseWacc * 0.9, tg: (data.terminalGrowthRate || DEFAULT_TERMINAL_G) * 1.2 },
+    base: { growth: baseGrowth, wacc: baseWacc, tg: data.terminalGrowthRate || DEFAULT_TERMINAL_G },
+    bear: { growth: Math.max(baseGrowth * 0.5, -0.50), wacc: baseWacc * 1.1, tg: (data.terminalGrowthRate || DEFAULT_TERMINAL_G) * 0.8 },
+  };
+  const out = {};
+  for (const [name, p] of Object.entries(params)) {
+    const d = { ...data, terminalGrowthRate: p.tg, growthOverride: p.growth, waccOverride: p.wacc };
+    const r = runDcf(d);
+    out[name] = { intrinsic: r.intrinsicValue, upside: r.upside, growth: p.growth, wacc: p.wacc, terminalG: p.tg, ev: r.enterpriseValue, equity: r.equityValue };
+  }
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 9. IMPLIED GROWTH (binary search)
+// ═══════════════════════════════════════════════════════════════
+function impliedGrowthRate(data) {
+  const targetPrice = data.price;
+  if (!targetPrice || targetPrice <= 0) return null;
+  let low = -0.50, high = 0.50;
+  for (let i = 0; i < 60; i++) {
+    const mid = (low + high) / 2;
+    const d = { ...data, growthOverride: mid, waccOverride: null };
+    const r = runDcf(d);
+    const iv = r.intrinsicValue;
+    if (iv == null || iv <= 0) return null;
+    if (iv > targetPrice) high = mid;
+    else low = mid;
+  }
+  return parseFloat(((low + high) / 2).toFixed(4));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 10. SENSITIVITY MATRIX
+// ═══════════════════════════════════════════════════════════════
+function buildSensitivity(data, waccSteps, tgSteps) {
+  waccSteps = waccSteps || 7;
+  tgSteps = tgSteps || 5;
+  const baseWacc = data._wacc || data.wacc || 0.10;
+  const baseTg = data.terminalGrowthRate || DEFAULT_TERMINAL_G;
+  const waccRange = Array.from({length: waccSteps}, (_, i) => baseWacc - 0.03 + i * 0.01);
+  const tgRange = Array.from({length: tgSteps}, (_, i) => Math.max(0.01, baseTg - 0.02 + i * 0.01));
+  const values = waccRange.map(w => tgRange.map(tg => {
+    const d = { ...data, terminalGrowthRate: tg, waccOverride: w, growthOverride: null };
+    return runDcf(d).intrinsicValue;
+  }));
+  return { waccRange, tgRange, values, currentPrice: data.price };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 11. MONTE CARLO
+// ═══════════════════════════════════════════════════════════════
+function runMonteCarlo(data, iterations, growthVol, waccVol) {
+  iterations = iterations || 2000;
+  growthVol = growthVol || 0.05;
+  waccVol = waccVol || 0.01;
+  const growth = data._estimatedGrowth || 0.05;
+  const wacc = data._wacc || 0.10;
+  const results = [];
+  for (let i = 0; i < iterations; i++) {
+    // Box-Muller transform for normal distribution
+    const u1 = Math.random(), u2 = Math.random();
+    const z1 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+    const z2 = Math.sqrt(-2 * Math.log(u1)) * Math.sin(2 * Math.PI * u2);
+    const gSample = growth + z1 * growthVol;
+    const wSample = wacc + z2 * waccVol;
+    const g = Math.max(-0.50, Math.min(0.50, gSample));
+    const wc = Math.max(0.03, Math.min(0.25, wSample));
+    const d = { ...data, growthOverride: g, waccOverride: wc };
+    const r = runDcf(d);
+    if (r.intrinsicValue != null && r.intrinsicValue > 0) results.push(r.intrinsicValue);
+  }
+  return results;
+}
+
+function mcStats(arr, price) {
+  const sorted = [...arr].sort((a, b) => a - b);
+  const n = sorted.length;
+  const mean = arr.reduce((s, v) => s + v, 0) / n;
+  const median = n % 2 ? sorted[Math.floor(n/2)] : (sorted[n/2-1] + sorted[n/2]) / 2;
+  const variance = arr.reduce((s, v) => s + (v - mean) ** 2, 0) / n;
+  const std = Math.sqrt(variance);
+  const p5 = sorted[Math.floor(n * 0.05)];
+  const p95 = sorted[Math.floor(n * 0.95)];
+  const pctBelow = arr.filter(v => v <= price).length / n;
+  return { mean, median, std, p5, p95, pctBelow };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 12. RELATIVE VALUATION
+// ═══════════════════════════════════════════════════════════════
+// Note: Full historical percentile calculation requires 3 years of data.
+// This uses the current multiples from the quote data.
+function getRelativeVal(tickerInfo) {
+  // tickerInfo should contain current PE, PB, PS, EV/EBITDA
+  // For a real calculation we'd need 3 years of history.
+  // Here we use the info available from the quote.
+  return tickerInfo;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 13. DATA FETCHING (Yahoo Finance via CORS proxy)
+// ═══════════════════════════════════════════════════════════════
+async function fetchYahoo(endpoint, params) {
+  const base = "https://query1.finance.yahoo.com";
+  const qs = new URLSearchParams(params || {}).toString();
+  const url = base + endpoint + (qs ? "?" + qs : "");
+  // Try direct first
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) return await res.json();
+  } catch (_) {}
+  // Try CORS proxy
+  const proxyUrls = [
+    "https://corsproxy.io/?" + encodeURIComponent(url),
+    "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
+  ];
+  for (const proxyUrl of proxyUrls) {
+    try {
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+      if (res.ok) return await res.json();
+    } catch (_) {}
+  }
+  throw new Error("Could not fetch data. CORS proxy may be blocked. Try using the sample data.");
+}
+
+async function searchTickers(query) {
+  if (!query || query.length < 1) return [];
+  const data = await fetchYahoo("/v1/finance/search", { q: query, lang: "en-US", quotesCount: 8 });
+  if (!data || !data.quotes) return [];
+  return data.quotes
+    .filter(q => q.eqType === "EQUITY" && !q.symbol.startsWith("0P"))
+    .map(q => ({ symbol: q.symbol, name: q.longName || q.shortName || q.symbol }));
+}
+
+async function fetchFinancialData(ticker) {
+  const [quoteData, finData, bsData] = await Promise.all([
+    fetchYahoo(`/v10/finance/quoteSummary/${ticker}`, { modules: "price,defaultKeyStatistics,financialData" }),
+    fetchYahoo(`/v10/finance/quoteSummary/${ticker}`, { modules: "cashflowStatementHistory" }),
+    fetchYahoo(`/v10/finance/quoteSummary/${ticker}`, { modules: "balanceSheetHistory" }),
+  ]);
+
+  const q = quoteData?.quoteSummary?.result?.[0];
+  const fin = finData?.quoteSummary?.result?.[0];
+  const bs = bsData?.quoteSummary?.result?.[0];
+
+  if (!q) throw new Error("No quote data found for " + ticker);
+
+  // Price & shares
+  const price = q.price?.regularMarketPrice?.raw || q.price?.regularMarketPreviousClose?.raw;
+  const shares = q.defaultKeyStatistics?.sharesOutstanding?.raw;
+  const beta = q.defaultKeyStatistics?.beta?.raw;
+  const marketCap = q.price?.marketCap?.raw;
+
+  // Balance sheet
+  const bsSheet = bs?.balanceSheetHistory?.balanceSheetStatements?.[0];
+  const totalDebt = bsSheet?.totalDebt?.raw || 0;
+  const cash = bsSheet?.cash?.raw || 0;
+
+  // Cash flow (FCF = operating cash flow + capital expenditure)
+  const cfStatements = fin?.cashflowStatementHistory?.cashflowStatements || [];
+  const fcfs = cfStatements.map(s => {
+    const ocf = s.operatingCashFlow?.raw || 0;
+    const capex = s.capitalExpenditures?.raw || 0;
+    const yr = new Date(s.endDate?.raw * 1000).getFullYear();
+    return { year: yr, value: ocf + capex };
+  }).filter(f => f.value > 0).sort((a, b) => a.year - b.year);
+
+  if (fcfs.length < 3) throw new Error(`Need at least 3 years of FCF data, got ${fcfs.length}`);
+
+  return { price, shares, beta, marketCap, totalDebt, cash, fcfs };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 14. UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+function setContent(id, html) {
+  document.getElementById(id).innerHTML = html;
+}
+
+function showError(msg) {
+  const tab = document.querySelector(".tab-content.active");
+  if (tab) tab.innerHTML = `<div class="card" style="color:#c0392b;padding:30px;text-align:center">${msg}</div>`;
+}
+
+function $id(id) { return document.getElementById(id); }
+
+// ═══════════════════════════════════════════════════════════════
+// 15. TAB RENDERERS
+// ═══════════════════════════════════════════════════════════════
+
+// ── DCF Tab ──
+function renderDcf(result, data) {
+  const rec = analyze(result, data);
+  const sym = CURRENCY;
+  const recClass = rec.action === "BUY" ? "buy" : rec.action === "SHORT" ? "short" : "dontbuy";
+
+  let html = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1.2;min-width:280px">
+        <div class="rec-box ${recClass}">
+          <div class="rec-action">${rec.action} — ${rec.confidence} CONFIDENCE</div>
+          <div class="rec-summary">${rec.summary}</div>
+          <div class="rec-reasons">${rec.reasons.map(r => "• " + r).join("<br>")}</div>
+        </div>
+        <div class="card">
+          <div class="metric-row">
+            <div class="metric"><div class="metric-label">Intrinsic Value</div>
+              <div class="metric-value ${result.upside > 0 ? 'green' : 'red'}">${fmtCurrency(result.intrinsicValue)}</div></div>
+            <div class="metric"><div class="metric-label">Current Price</div>
+              <div class="metric-value">${fmtCurrency(result.currentPrice)}</div></div>
+            <div class="metric"><div class="metric-label">Upside</div>
+              <div class="metric-value ${result.upside > 0 ? 'green' : 'red'}">${result.upside != null ? (result.upside*100).toFixed(1)+'%' : '--'}</div></div>
+          </div>
+          <hr style="margin:8px 0;border:none;border-top:1px solid #eee">
+          <table class="val-table">
+            <tr><td>Estimated Growth Rate</td><td class="num">${fmtPct(result.growthRate)}</td></tr>
+            <tr><td>WACC (Discount Rate)</td><td class="num">${fmtPct(result.wacc)}</td></tr>
+            <tr><td>Terminal Value</td><td class="num">${fmtCurrency(result.terminalValue)}</td></tr>
+            <tr><td>Enterprise Value</td><td class="num">${fmtCurrency(result.enterpriseValue)}</td></tr>
+            <tr><td>Equity Value</td><td class="num">${fmtCurrency(result.equityValue)}</td></tr>
+          </table>
+        </div>
+      </div>
+      <div style="flex:2;min-width:320px">
+        <div class="card">
+          <div class="card-title">Cash Flow Projections</div>
+          <table class="dcf-table">
+            <thead><tr><th>Year</th><th class="num">Historical FCF</th><th class="num">Projected FCF</th></tr></thead>
+            <tbody>
+              ${data.fcfs.map(f => `<tr><td>${f.year}</td><td class="num">${fmtCurrency(f.value)}</td><td class="num"></td></tr>`).join("")}
+              ${result.projectedFcfs.map((v, i) => `<tr><td>${data.fcfs[data.fcfs.length-1].year + i + 1}</td><td class="num"></td><td class="num">${fmtCurrency(v)}</td></tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+        <div class="info-box">Intrinsic Value is the DCF-derived fair value per share. If it is above the Current Price, the stock may be undervalued. A BUY signal requires upside exceeding ±15% margin of safety; SHORT requires downside exceeding ±15%. WACC is the discount rate reflecting the company's cost of capital. The Growth Rate is estimated from historical FCF using log-linear regression.</div>
+      </div>
+    </div>`;
+  setContent("tab-dcf", html);
+}
+
+// ── Scenarios Tab ──
+function renderScenarios(result, data) {
+  const sc = runScenarios(data, result);
+  const colors = { bull: "#2d7d46", base: "#4a8bc2", bear: "#c0392b" };
+  const labels = { bull: "Bull Case", base: "Base Case", bear: "Bear Case" };
+
+  let cardsHtml = '<div class="scenario-row">';
+  for (const name of ["bull", "base", "bear"]) {
+    const s = sc[name];
+    cardsHtml += `<div class="scenario-card" style="background:${colors[name]}">
+      <h4>${labels[name]}</h4>
+      <p><b>Intrinsic:</b> ${fmtCurrency(s.intrinsic)}</p>
+      <p><b>Upside:</b> ${s.upside != null ? (s.upside*100).toFixed(1)+'%' : '--'}</p>
+      <p class="dim">Growth: ${fmtPct(s.growth)} | WACC: ${fmtPct(s.wacc)} | Term.G: ${fmtPct(s.terminalG)}</p>
+    </div>`;
+  }
+  cardsHtml += '</div>';
+
+  let tableHtml = '<div class="card"><div class="card-title">Comparison</div><table class="val-table"><thead><tr><th>Scenario</th><th class="num">Intrinsic</th><th class="num">Upside</th><th class="num">Growth</th><th class="num">WACC</th></tr></thead><tbody>';
+  for (const name of ["bull", "base", "bear"]) {
+    const s = sc[name];
+    tableHtml += `<tr><td>${name.charAt(0).toUpperCase()+name.slice(1)}</td><td class="num">${fmtCurrency(s.intrinsic)}</td><td class="num">${s.upside != null ? (s.upside*100).toFixed(1)+'%' : '--'}</td><td class="num">${fmtPct(s.growth)}</td><td class="num">${fmtPct(s.wacc)}</td></tr>`;
+  }
+  tableHtml += '</tbody></table></div>';
+
+  setContent("tab-scenarios", cardsHtml + tableHtml +
+    '<div class="info-box">Bull / Base / Bear cases stress-test the DCF by varying growth (1.5x / 1x / 0.5x of estimated growth), WACC (−10% / base / +10%), and terminal growth (±20%). The spread between Bull and Bear shows the range of possible outcomes under different assumptions.</div>');
+}
+
+// ── Implied G Tab ──
+function renderImplied(result, data) {
+  const implied = impliedGrowthRate(data);
+  const estimated = result.estimatedGrowth || result.growthRate;
+
+  let html = '<div class="card">';
+  html += `<div class="metric-row">
+    <div class="metric"><div class="metric-label">Current Price</div><div class="metric-value">${fmtCurrency(data.price)}</div></div>
+    <div class="metric"><div class="metric-label">WACC Used</div><div class="metric-value">${fmtPct(result.wacc)}</div></div>
+    <div class="metric"><div class="metric-label">Historical FCF Growth</div><div class="metric-value">${fmtPct(estimated)}</div></div>
+    <div class="metric"><div class="metric-label">Market-Implied Growth</div><div class="metric-value">${implied != null ? fmtPct(implied) : 'Could not solve'}</div></div>`;
+  if (implied != null && estimated) {
+    const ratio = estimated !== 0 ? implied / estimated : Infinity;
+    html += `<div class="metric"><div class="metric-label">Implied / Historical</div><div class="metric-value">${ratio.toFixed(1)}x</div></div>`;
+  }
+  html += '</div></div>';
+
+  let txt = "Market-Implied Growth is the FCF growth rate the current stock price is pricing in, solved by reverse-DCF (binary search). Compare it to the Historical FCF Growth (estimated from past cash flows).";
+  if (implied != null && estimated) {
+    const ratio = estimated !== 0 ? implied / estimated : Infinity;
+    if (ratio > 1.5) txt += ` Ratio: ${ratio.toFixed(1)}x — The market expects much higher growth than history suggests. The stock may be overvalued unless growth accelerates.`;
+    else if (ratio < 0.5) txt += ` Ratio: ${ratio.toFixed(1)}x — The market prices in much lower growth than history. The stock may be undervalued if the company can sustain its historical growth.`;
+    else txt += ` Ratio: ${ratio.toFixed(1)}x — Market expectations (${fmtPct(implied)}) are broadly in line with historical growth (${fmtPct(estimated)}).`;
+  }
+
+  setContent("tab-implied", html + `<div class="info-box">${txt}</div>`);
+}
+
+// ── Sensitivity Tab ──
+function renderSensitivity(result, data) {
+  data._wacc = result.wacc;
+  data.wacc = result.wacc;
+  const sens = buildSensitivity(data, 7, 5);
+  const price = data.price;
+
+  let html = '<div style="overflow-x:auto"><table class="sens-table"><thead><tr><th>WACC \\ TG</th>';
+  for (const tg of sens.tgRange) html += `<th>${fmtPct(tg)}</th>`;
+  html += '</tr></thead><tbody>';
+  for (let i = 0; i < sens.waccRange.length; i++) {
+    html += `<tr><th>${fmtPct(sens.waccRange[i])}</th>`;
+    for (let j = 0; j < sens.tgRange.length; j++) {
+      const iv = sens.values[i][j];
+      let cls = "";
+      if (iv != null && price) {
+        if (iv > price * 1.15) cls = "green";
+        else if (iv < price * 0.85) cls = "red";
+      }
+      html += `<td class="${cls}">${iv != null ? fmtCurrency(iv) : '--'}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+
+  setContent("tab-sensitivity", html +
+    '<div class="info-box">Rows = WACC (discount rate), Columns = Terminal Growth Rate. Green cells indicate >15% upside vs current price (undervalued); red cells indicate >15% downside (overvalued). A wide spread across the matrix means the valuation is highly sensitive to these inputs.</div>');
+}
+
+// ── Charts Tab ──
+let fcfChartInstance = null;
+
+function renderCharts(result, data) {
+  const fcfCanvas = document.createElement("canvas");
+  fcfCanvas.id = "fcfChart";
+  fcfCanvas.style.height = "300px";
+  fcfCanvas.style.width = "100%";
+
+  const container = document.createElement("div");
+  container.style.position = "relative";
+  container.style.height = "300px";
+  container.appendChild(fcfCanvas);
+
+  // Destroy previous chart
+  if (fcfChartInstance) { fcfChartInstance.destroy(); fcfChartInstance = null; }
+
+  const histYears = data.fcfs.map(f => f.year);
+  const histVals = data.fcfs.map(f => f.value / 1e7);
+  const lastYear = histYears[histYears.length - 1];
+  const projYears = result.projectedFcfs.map((_, i) => lastYear + i + 1);
+  const projVals = result.projectedFcfs.map(v => v / 1e7);
+  const pvVals = result.projectedFcfs.map((v, i) => v / Math.pow(1 + result.wacc, i + 1) / 1e7);
+
+  setContent("tab-charts", `<div class="chart-container" id="fcfChartContainer"></div>
+    <div class="info-box">Blue bars: historical free cash flows. Green bars: projected FCFs. Red dashed line: present value of projected FCFs — it declines each year because future cash flows are discounted at the WACC. All values in Cr (crores).</div>`);
+
+  const ctx = document.getElementById("fcfChartContainer");
+  // Create a new canvas inside
+  ctx.innerHTML = '<canvas id="fcfChartCanvas" style="width:100%;height:300px"></canvas>';
+
+  const canvas = document.getElementById("fcfChartCanvas");
+  fcfChartInstance = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: [...histYears, ...projYears],
+      datasets: [
+        {
+          label: "Historical FCF",
+          data: [...histVals, ...projYears.map(() => null)],
+          backgroundColor: "#4a8bc2",
+          barPercentage: 0.6,
+        },
+        {
+          label: "Projected FCF",
+          data: [...histYears.map(() => null), ...projVals],
+          backgroundColor: "#2d7d46",
+          barPercentage: 0.6,
+        },
+        {
+          label: "PV of Projected",
+          data: [...histYears.map(() => null), ...pvVals],
+          type: "line",
+          borderColor: "#e74c3c",
+          backgroundColor: "#e74c3c",
+          borderDash: [5, 3],
+          pointRadius: 3,
+          fill: false,
+          tension: 0.1,
+          pointStyle: "circle",
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: "Free Cash Flow Projection", font: { size: 14, weight: "bold" } },
+        legend: { position: "top", labels: { boxWidth: 12, padding: 8, font: { size: 11 } } },
+      },
+      scales: {
+        x: { title: { display: true, text: "Year", font: { size: 11 } } },
+        y: { title: { display: true, text: "Value (Cr)", font: { size: 11 } }, beginAtZero: true },
+      },
+    },
+  });
+}
+
+// ── Relative Valuation Tab ──
+function renderRelVal(result, data) {
+  const rv = state._relValData || {};
+  if (!rv.pe && !rv.pb && !rv.ps) {
+    setContent("tab-relval",
+      '<div class="card text-center" style="padding:30px"><p style="color:#888">Relative valuation requires historical data that is limited in the browser version.</p><p style="font-size:12px;color:#aaa;margin-top:8px">Current multiples from the quote are shown below.</p></div>' +
+      '<div class="card"><table class="val-table"><tr><td>P/E (Trailing)</td><td class="num">'+(data._pe || '--')+'</td></tr><tr><td>P/B</td><td class="num">'+(data._pb || '--')+'</td></tr><tr><td>P/S</td><td class="num">'+(data._ps || '--')+'</td></tr><tr><td>EV/EBITDA</td><td class="num">'+(data._evEbitda || '--')+'</td></tr></table></div>' +
+      '<div class="info-box">Percentile rank compares the current multiple to its own trailing 3-year range (when history is available). 0% = cheapest in 3 years; 100% = most expensive. A low percentile (<20%) may indicate a value opportunity; a high percentile (>80%) suggests the stock is expensive vs history.</div>');
+    return;
+  }
+  let html = '<div class="card"><table class="val-table"><thead><tr><th>Metric</th><th class="num">Current</th><th class="num">3Y Low</th><th class="num">3Y High</th><th class="num">Percentile</th></tr></thead><tbody>';
+  const labels = { pe: "P/E", pb: "P/B", ps: "P/S", ev_ebitda: "EV/EBITDA" };
+  for (const [key, label] of Object.entries(labels)) {
+    const d = rv[key];
+    if (!d) continue;
+    html += `<tr><td>${label}</td><td class="num">${d.current != null ? d.current.toFixed(1)+'x' : '--'}</td><td class="num">${d.low != null ? d.low.toFixed(1)+'x' : '--'}</td><td class="num">${d.high != null ? d.high.toFixed(1)+'x' : '--'}</td><td class="num">${d.pct != null ? (d.pct*100).toFixed(0)+'%' : '--'}</td></tr>`;
+  }
+  html += '</tbody></table></div>';
+  setContent("tab-relval", html +
+    '<div class="info-box">Percentile rank compares the current multiple to its own trailing 3-year range. 0% = cheapest in 3 years; 100% = most expensive. A low percentile (<20%) may indicate a value opportunity; a high percentile (>80%) suggests the stock is expensive vs history.</div>');
+}
+
+// ── Monte Carlo Tab ──
+let mcChartInstance = null;
+
+function renderMonteCarlo(result, data) {
+  const html = `<div class="card">
+    <div class="flex">
+      <label>Iterations:</label>
+      <input type="number" id="mcIters" value="2000" min="1000" max="50000" step="1000">
+      <button class="btn-primary" id="mcRunBtn">Run Monte Carlo</button>
+    </div>
+  </div>
+  <div id="mcResults"></div>`;
+  setContent("tab-montecarlo", html);
+
+  $id("mcRunBtn").addEventListener("click", async () => {
+    const n = parseInt($id("mcIters").value) || 2000;
+    data._estimatedGrowth = result.estimatedGrowth || result.growthRate;
+    data._wacc = result.wacc;
+    $id("mcResults").innerHTML = '<div class="text-center" style="padding:30px;color:#888">Running ' + n.toLocaleString() + ' iterations...</div>';
+
+    // Run in chunks to not freeze the UI
+    const chunkSize = 500;
+    let allVals = [];
+    const chunks = Math.ceil(n / chunkSize);
+    for (let c = 0; c < chunks; c++) {
+      const count = Math.min(chunkSize, n - c * chunkSize);
+      const vals = runMonteCarlo(data, count);
+      allVals = allVals.concat(vals);
+      // Yield to UI
+      await new Promise(r => setTimeout(r, 0));
+    }
+
+    if (allVals.length === 0) {
+      $id("mcResults").innerHTML = '<div class="text-center" style="padding:30px;color:#c0392b">No valid results.</div>';
+      return;
+    }
+
+    const stats = mcStats(allVals, data.price);
+    state.mcResults = { vals: allVals, stats };
+
+    // Render chart + stats
+    if (mcChartInstance) { mcChartInstance.destroy(); mcChartInstance = null; }
+
+    let resultHtml = `<div class="chart-container" style="height:300px"><canvas id="mcChartCanvas" style="width:100%;height:300px"></canvas></div>`;
+    resultHtml += `<div class="card"><div class="metric-row">
+      <div class="metric"><div class="metric-label">Mean</div><div class="metric-value">${fmtCurrency(stats.mean)}</div></div>
+      <div class="metric"><div class="metric-label">Median</div><div class="metric-value">${fmtCurrency(stats.median)}</div></div>
+      <div class="metric"><div class="metric-label">Std Dev</div><div class="metric-value">${fmtCurrency(stats.std)}</div></div>
+      <div class="metric"><div class="metric-label">5th Percentile</div><div class="metric-value">${fmtCurrency(stats.p5)}</div></div>
+      <div class="metric"><div class="metric-label">95th Percentile</div><div class="metric-value">${fmtCurrency(stats.p95)}</div></div>
+      <div class="metric"><div class="metric-label">Current Price</div><div class="metric-value">${fmtCurrency(data.price)}</div></div>
+      <div class="metric"><div class="metric-label">P(Value ≤ Price)</div><div class="metric-value">${(stats.pctBelow*100).toFixed(1)+'%'}</div></div>
+    </div></div>`;
+    resultHtml += '<div class="info-box">The histogram shows the distribution of possible intrinsic values from thousands of randomized DCF runs. Spread (Std Dev) reflects uncertainty. If Mean > Median, the distribution is right-skewed (upside potential exceeds downside risk). P(Value ≤ Price) is the probability the stock is overvalued at the current price — lower is better for finding undervalued opportunities.</div>';
+
+    $id("mcResults").innerHTML = resultHtml;
+
+    // Build histogram
+    const binCount = 60;
+    const min = Math.min(...allVals), max = Math.max(...allVals);
+    const binWidth = (max - min) / binCount;
+    const bins = Array(binCount).fill(0);
+    for (const v of allVals) {
+      const idx = Math.min(Math.floor((v - min) / binWidth), binCount - 1);
+      bins[idx]++;
+    }
+    const binLabels = bins.map((_, i) => fmtCurrency(min + binWidth * (i + 0.5)));
+
+    const ctx = document.getElementById("mcChartCanvas");
+    if (ctx) {
+      mcChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: binLabels,
+          datasets: [{
+            label: "Frequency",
+            data: bins,
+            backgroundColor: "#4a8bc2",
+            barPercentage: 1,
+            categoryPercentage: 1,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: { display: true, text: "Monte Carlo Distribution (" + allVals.length.toLocaleString() + " iterations)", font: { size: 14, weight: "bold" } },
+            legend: { display: false },
+          },
+          scales: {
+            x: { title: { display: true, text: "Intrinsic Value", font: { size: 11 } }, ticks: { maxRotation: 45, font: { size: 9 } } },
+            y: { title: { display: true, text: "Frequency", font: { size: 11 } }, beginAtZero: true },
+          },
+        },
+      });
+    }
+  });
+}
+
+// ── Watchlist Tab ──
+function renderWatchlist() {
+  const wl = state.watchlist;
+  let html = `<div class="wl-controls">
+    <input type="text" id="wlInput" placeholder="e.g. RELIANCE" style="padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:13px;width:150px">
+    <button class="btn-primary" id="wlAddBtn">Add</button>
+    <button class="btn-secondary" id="wlRefreshBtn">Refresh All</button>
+    <select id="wlRemoveSelect"><option value="">— Remove —</option>${wl.map(t => `<option value="${t}">${t}</option>`).join("")}</select>
+    <button class="btn-secondary" id="wlRemoveBtn">Remove</button>
+  </div>`;
+
+  if (wl.length === 0) {
+    html += '<div class="card text-center" style="padding:30px;color:#888">Watchlist is empty. Add tickers above.</div>';
+  } else {
+    html += '<div class="card"><table class="val-table"><thead><tr><th>Ticker</th><th class="num">Price</th><th class="num">Intrinsic</th><th class="num">Upside</th><th>Rec</th></tr></thead><tbody>';
+    if (state.watchlistData.length > 0) {
+      for (const r of state.watchlistData) {
+        html += `<tr><td>${r.ticker}</td><td class="num">${r.price}</td><td class="num">${r.intrinsic}</td><td class="num">${r.upside}</td><td>${r.rec}</td></tr>`;
+      }
+    } else {
+      for (const t of wl) {
+        html += `<tr><td>${t}</td><td class="num">--</td><td class="num">--</td><td class="num">--</td><td>queued</td></tr>`;
+      }
+    }
+    html += '</tbody></table></div>';
+  }
+  html += '<div class="text-sm">Tickers auto-append .NS (NSE). Refresh runs DCF sequentially for all tickers.</div>';
+
+  setContent("tab-watchlist", html);
+
+  // Event handlers
+  $id("wlAddBtn")?.addEventListener("click", () => {
+    const val = $id("wlInput").value.trim().toUpperCase();
+    if (!val) return;
+    const sym = val.includes(".") ? val : val + ".NS";
+    if (!state.watchlist.includes(sym)) {
+      state.watchlist.push(sym);
+      renderWatchlist();
+    }
+  });
+  $id("wlRemoveBtn")?.addEventListener("click", () => {
+    const sel = $id("wlRemoveSelect").value;
+    if (sel) {
+      state.watchlist = state.watchlist.filter(t => t !== sel);
+      state.watchlistData = state.watchlistData.filter(r => r.ticker !== sel);
+      renderWatchlist();
+    }
+  });
+  $id("wlRefreshBtn")?.addEventListener("click", async () => {
+    state.watchlistData = [];
+    $id("wlRefreshBtn").disabled = true;
+    $id("wlRefreshBtn").textContent = "Refreshing...";
+    for (const sym of state.watchlist) {
+      try {
+        const fin = await fetchFinancialData(sym);
+        const d = {
+          fcfs: fin.fcfs, price: fin.price, shares: fin.shares, beta: fin.beta,
+          marketCap: fin.marketCap, totalDebt: fin.totalDebt, cash: fin.cash,
+          projectionYears: 5, terminalGrowthRate: DEFAULT_TERMINAL_G,
+          taxRate: TAX_RATE, rfRate: RISK_FREE_RATE, marketPremium: MARKET_PREMIUM,
+        };
+        const r = runDcf(d);
+        const rec = analyze(r, d);
+        state.watchlistData.push({
+          ticker: sym, price: fmtCurrency(fin.price),
+          intrinsic: fmtCurrency(r.intrinsicValue),
+          upside: r.upside != null ? (r.upside*100).toFixed(1)+'%' : '--',
+          rec: rec.action,
+        });
+      } catch (e) {
+        state.watchlistData.push({ ticker: sym, price: "--", intrinsic: "--", upside: "--", rec: "Error" });
+      }
+    }
+    renderWatchlist();
+  });
+}
+
+// ── Export Tab ──
+function renderExport(result, data) {
+  if (!result) {
+    setContent("tab-export", '<div class="card text-center" style="padding:30px;color:#888">Run DCF first to export a report.</div><div class="text-sm">Exports a CSV report. Only CSV format is supported.</div>');
+    return;
+  }
+  const rec = analyze(result, data);
+  let csv = "Metric,Value\n";
+  csv += `Ticker,${state.ticker}\n`;
+  csv += `Intrinsic Value / Share,${result.intrinsicValue}\n`;
+  csv += `Current Price,${result.currentPrice}\n`;
+  csv += `Upside,${result.upside != null ? (result.upside*100).toFixed(1)+'%' : '--'}\n`;
+  csv += `Growth Rate,${(result.growthRate*100).toFixed(1)}%\n`;
+  csv += `WACC,${(result.wacc*100).toFixed(1)}%\n`;
+  csv += `Terminal Value,${result.terminalValue}\n`;
+  csv += `Enterprise Value,${result.enterpriseValue}\n`;
+  csv += `Equity Value,${result.equityValue}\n`;
+  csv += `\nRecommendation,${rec.action}\n`;
+  csv += `Confidence,${rec.confidence}\n`;
+  csv += `Summary,${rec.summary}\n`;
+  csv += `Reasons,${rec.reasons.join('; ')}\n`;
+  csv += `\nYear,Historical FCF,Projected FCF\n`;
+  for (const f of data.fcfs) csv += `${f.year},${f.value},\n`;
+  const lastYear = data.fcfs[data.fcfs.length - 1].year;
+  result.projectedFcfs.forEach((v, i) => csv += `${lastYear + i + 1},,${v}\n`);
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const filename = `dcf_report_${state.ticker}.csv`;
+
+  setContent("tab-export", `
+    <div class="card" style="text-align:center;padding:30px">
+      <p style="margin-bottom:16px">Export your DCF valuation report as CSV.</p>
+      <a href="${url}" download="${filename}" class="btn-primary" style="display:inline-block;padding:10px 24px;text-decoration:none;border-radius:4px;font-size:14px">Download CSV</a>
+    </div>
+    <div class="text-sm">Exports a CSV report with valuation summary, recommendation, and cash flow data.</div>
+  `);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 16. RESEARCH REPORT
+// ═══════════════════════════════════════════════════════════════
+function renderResearch(report) {
+  if (!report) return;
+  const p = report.profile || {};
+  const val = report.valuation || {};
+  const mom = report.momentum || {};
+  const margins = report.margins || {};
+  const health = report.health || {};
+  const growth = report.growth || {};
+  const revenues = report.revenues || {};
+
+  let html = `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+    <button class="btn-primary" id="resSummaryBtn" style="font-size:12px;padding:4px 12px">Summary</button>
+    <button class="btn-secondary" id="resComprehensiveBtn" style="font-size:12px;padding:4px 12px">Comprehensive</button>
+  </div>
+  <div id="resContent">`;
+
+  // Summary
+  let summaryHtml = `<div class="card"><h4 style="margin-bottom:6px">${p.name || '--'} — ${p.sector || ''} / ${p.industry || ''}</h4>`;
+  summaryHtml += '<div class="metric-row">';
+  summaryHtml += `<div class="metric"><div class="metric-label">P/E (Trailing)</div><div class="metric-value">${val.pe_trailing != null ? val.pe_trailing.toFixed(1)+'x' : '--'}</div></div>`;
+  summaryHtml += `<div class="metric"><div class="metric-label">P/B</div><div class="metric-value">${val.pb != null ? val.pb.toFixed(1)+'x' : '--'}</div></div>`;
+  summaryHtml += `<div class="metric"><div class="metric-label">P/S</div><div class="metric-value">${val.ps != null ? val.ps.toFixed(1)+'x' : '--'}</div></div>`;
+  summaryHtml += `<div class="metric"><div class="metric-label">Div Yield</div><div class="metric-value">${val.dividend_yield != null ? (val.dividend_yield*100).toFixed(1)+'%' : '--'}</div></div>`;
+  summaryHtml += `<div class="metric"><div class="metric-label">RSI (14)</div><div class="metric-value">${mom.rsi != null ? mom.rsi.toFixed(1) : '--'}</div></div>`;
+  summaryHtml += `<div class="metric"><div class="metric-label">12M Return</div><div class="metric-value">${mom.return_12m != null ? (mom.return_12m*100).toFixed(1)+'%' : '--'}</div></div>`;
+  summaryHtml += '</div></div>';
+
+  if (Object.keys(margins).length > 0) {
+    const latestYr = Math.max(...Object.keys(margins).map(Number));
+    const m = margins[latestYr];
+    summaryHtml += `<div class="card"><div class="card-title">Latest Margins (${latestYr})</div>`;
+    summaryHtml += `<div class="metric-row">
+      <div class="metric"><div class="metric-label">Gross</div><div class="metric-value">${m.gross != null ? (m.gross*100).toFixed(1)+'%' : '--'}</div></div>
+      <div class="metric"><div class="metric-label">Operating</div><div class="metric-value">${m.operating != null ? (m.operating*100).toFixed(1)+'%' : '--'}</div></div>
+      <div class="metric"><div class="metric-label">Net</div><div class="metric-value">${m.net != null ? (m.net*100).toFixed(1)+'%' : '--'}</div></div>
+    </div></div>`;
+  }
+  html += `<div id="resSummary">${summaryHtml}</div>`;
+
+  // Comprehensive
+  let compHtml = '<div id="resComprehensive" class="hidden">';
+
+  compHtml += '<div class="card"><div class="card-title">Company Profile</div>';
+  compHtml += `<table class="val-table"><tr><td>Name</td><td>${p.name || '--'}</td></tr><tr><td>Sector</td><td>${p.sector || '--'}</td></tr><tr><td>Industry</td><td>${p.industry || '--'}</td></tr><tr><td>Employees</td><td>${p.employees != null ? p.employees.toLocaleString() : '--'}</td></tr><tr><td>Country</td><td>${p.country || '--'}</td></tr><tr><td>Website</td><td>${p.website || '--'}</td></tr>`;
+  if (p.description) compHtml += `<tr><td style="vertical-align:top">Description</td><td style="font-size:12px;color:#555">${p.description}</td></tr>`;
+  compHtml += '</table></div>';
+
+  if (Object.keys(margins).length > 0) {
+    compHtml += '<div class="card"><div class="card-title">Profitability Trends</div><table class="dcf-table"><thead><tr><th>Year</th><th class="num">Gross</th><th class="num">Operating</th><th class="num">Net</th></tr></thead><tbody>';
+    for (const yr of Object.keys(margins).map(Number).sort()) {
+      const m = margins[yr];
+      compHtml += `<tr><td>${yr}</td><td class="num">${m.gross != null ? (m.gross*100).toFixed(1)+'%' : '--'}</td><td class="num">${m.operating != null ? (m.operating*100).toFixed(1)+'%' : '--'}</td><td class="num">${m.net != null ? (m.net*100).toFixed(1)+'%' : '--'}</td></tr>`;
+    }
+    compHtml += '</tbody></table></div>';
+  }
+
+  compHtml += `<div class="card"><div class="card-title">Financial Health</div><table class="val-table">
+    <tr><td>ROE</td><td class="num">${health.roe != null ? (health.roe*100).toFixed(1)+'%' : '--'}</td></tr>
+    <tr><td>ROA</td><td class="num">${health.roa != null ? (health.roa*100).toFixed(1)+'%' : '--'}</td></tr>
+    <tr><td>Debt / Equity</td><td class="num">${health.debt_equity != null ? health.debt_equity.toFixed(2) : '--'}</td></tr>
+    <tr><td>Current Ratio</td><td class="num">${health.current_ratio != null ? health.current_ratio.toFixed(2) : '--'}</td></tr>
+    <tr><td>Interest Coverage</td><td class="num">${health.interest_coverage != null ? health.interest_coverage.toFixed(1) : '--'}</td></tr>
+  </table></div>`;
+
+  compHtml += `<div class="card"><div class="card-title">Growth Rates</div><table class="val-table">
+    <tr><td>Revenue CAGR (3Y)</td><td class="num">${growth.revenue_cagr_3y != null ? (growth.revenue_cagr_3y*100).toFixed(1)+'%' : '--'}</td></tr>
+    <tr><td>Revenue CAGR (5Y)</td><td class="num">${growth.revenue_cagr_5y != null ? (growth.revenue_cagr_5y*100).toFixed(1)+'%' : '--'}</td></tr>
+    <tr><td>Earnings CAGR (3Y)</td><td class="num">${growth.earnings_cagr_3y != null ? (growth.earnings_cagr_3y*100).toFixed(1)+'%' : '--'}</td></tr>
+    <tr><td>Earnings CAGR (5Y)</td><td class="num">${growth.earnings_cagr_5y != null ? (growth.earnings_cagr_5y*100).toFixed(1)+'%' : '--'}</td></tr>
+  </table></div>`;
+
+  compHtml += `<div class="card"><div class="card-title">Valuation Multiples</div><table class="val-table">
+    <tr><td>P/E (Trailing)</td><td class="num">${val.pe_trailing != null ? val.pe_trailing.toFixed(1)+'x' : '--'}</td></tr>
+    <tr><td>P/E (Forward)</td><td class="num">${val.pe_forward != null ? val.pe_forward.toFixed(1)+'x' : '--'}</td></tr>
+    <tr><td>P/B</td><td class="num">${val.pb != null ? val.pb.toFixed(1)+'x' : '--'}</td></tr>
+    <tr><td>P/S</td><td class="num">${val.ps != null ? val.ps.toFixed(1)+'x' : '--'}</td></tr>
+    <tr><td>EV/EBITDA</td><td class="num">${val.ev_ebitda != null ? val.ev_ebitda.toFixed(1)+'x' : '--'}</td></tr>
+    <tr><td>Dividend Yield</td><td class="num">${val.dividend_yield != null ? (val.dividend_yield*100).toFixed(1)+'%' : '--'}</td></tr>
+    <tr><td>Market Cap</td><td class="num">${val.market_cap != null ? fmtCurrency(val.market_cap) : '--'}</td></tr>
+  </table></div>`;
+
+  compHtml += `<div class="card"><div class="card-title">Momentum & Risk</div><table class="val-table">
+    <tr><td>52-Week High</td><td class="num">${mom.high_52w != null ? fmtCurrency(mom.high_52w) : '--'}</td></tr>
+    <tr><td>52-Week Low</td><td class="num">${mom.low_52w != null ? fmtCurrency(mom.low_52w) : '--'}</td></tr>
+    <tr><td>1M Return</td><td class="num">${mom.return_1m != null ? (mom.return_1m*100).toFixed(1)+'%' : '--'}</td></tr>
+    <tr><td>3M Return</td><td class="num">${mom.return_3m != null ? (mom.return_3m*100).toFixed(1)+'%' : '--'}</td></tr>
+    <tr><td>6M Return</td><td class="num">${mom.return_6m != null ? (mom.return_6m*100).toFixed(1)+'%' : '--'}</td></tr>
+    <tr><td>12M Return</td><td class="num">${mom.return_12m != null ? (mom.return_12m*100).toFixed(1)+'%' : '--'}</td></tr>
+    <tr><td>RSI (14)</td><td class="num">${mom.rsi != null ? mom.rsi.toFixed(1) : '--'}</td></tr>
+    <tr><td>Beta</td><td class="num">${mom.beta != null ? mom.beta.toFixed(3) : '--'}</td></tr>
+  </table></div>`;
+
+  compHtml += '</div>'; // end comprehensive
+
+  html += compHtml + '</div>'; // end resContent
+
+  const modal = $id("researchModal");
+  modal.innerHTML = html;
+  modal.classList.remove("hidden");
+
+  setTimeout(() => {
+    $id("resSummaryBtn")?.addEventListener("click", () => {
+      $id("resSummary").classList.remove("hidden");
+      $id("resComprehensive").classList.add("hidden");
+    });
+    $id("resComprehensiveBtn")?.addEventListener("click", () => {
+      $id("resSummary").classList.add("hidden");
+      $id("resComprehensive").classList.remove("hidden");
+    });
+  }, 50);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 17. MAIN APP
+// ═══════════════════════════════════════════════════════════════
+const TAB_NAMES = ["DCF", "Scenarios", "Implied G", "Sensitivity", "Charts", "Rel Val", "Monte Carlo", "Watchlist", "Export"];
+let activeTab = "DCF";
+
+function buildTabs() {
+  const bar = $id("tabBar");
+  bar.innerHTML = TAB_NAMES.map(t => `<button class="tab-btn ${t === 'DCF' ? 'active' : ''}" data-tab="${t}">${t}</button>`).join("");
+
+  bar.addEventListener("click", (e) => {
+    const btn = e.target.closest(".tab-btn");
+    if (!btn) return;
+    const tab = btn.dataset.tab;
+    switchTab(tab);
+  });
+}
+
+function switchTab(name) {
+  activeTab = name;
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll(".tab-content").forEach(c => c.classList.toggle("active", c.id === "tab-" + name.toLowerCase().replace(/ /g, "")));
+  renderActiveTab(name);
+}
+
+function renderActiveTab(name) {
+  const result = state.result;
+  const data = state.data;
+
+  switch (name) {
+    case "DCF":
+      if (result) renderDcf(result, data);
+      else setContent("tab-dcf", '<div class="card text-center" style="padding:40px;color:#888">Enter a ticker and click <b>Calculate</b> to begin.</div>');
+      break;
+    case "Scenarios":
+      if (result) renderScenarios(result, data);
+      else setContent("tab-scenarios", '<div class="card text-center" style="padding:40px;color:#888">Run DCF first.</div>');
+      break;
+    case "Implied G":
+      if (result) renderImplied(result, data);
+      else setContent("tab-implied", '<div class="card text-center" style="padding:40px;color:#888">Run DCF first.</div>');
+      break;
+    case "Sensitivity":
+      if (result) renderSensitivity(result, data);
+      else setContent("tab-sensitivity", '<div class="card text-center" style="padding:40px;color:#888">Run DCF first.</div>');
+      break;
+    case "Charts":
+      if (result) renderCharts(result, data);
+      else setContent("tab-charts", '<div class="card text-center" style="padding:40px;color:#888">Run DCF first.</div>');
+      break;
+    case "Rel Val":
+      if (result) renderRelVal(result, data);
+      else setContent("tab-relval", '<div class="card text-center" style="padding:40px;color:#888">Run DCF first.</div>');
+      break;
+    case "Monte Carlo":
+      if (result) renderMonteCarlo(result, data);
+      else setContent("tab-montecarlo", '<div class="card text-center" style="padding:40px;color:#888">Run DCF first.</div>');
+      break;
+    case "Watchlist":
+      renderWatchlist();
+      break;
+    case "Export":
+      renderExport(result, data);
+      break;
+  }
+}
+
+async function doCalculate(tickerSymbol) {
+  const ticker = tickerSymbol.includes(".") ? tickerSymbol : tickerSymbol + ".NS";
+  $id("tickerLabel").textContent = ticker;
+
+  // Try fetching from Yahoo Finance
+  let fin, result, data;
+  try {
+    fin = await fetchFinancialData(ticker);
+    data = {
+      fcfs: fin.fcfs, price: fin.price, shares: fin.shares, beta: fin.beta,
+      marketCap: fin.marketCap, totalDebt: fin.totalDebt, cash: fin.cash,
+      taxRate: TAX_RATE, rfRate: RISK_FREE_RATE, marketPremium: MARKET_PREMIUM,
+      projectionYears: 5, terminalGrowthRate: DEFAULT_TERMINAL_G,
+    };
+    result = runDcf(data);
+  } catch (e) {
+    console.warn("Live fetch failed:", e.message);
+    // Fall back to sample data
+    fin = null;
+    data = null;
+    result = null;
+  }
+
+  if (!result) {
+    // Try loading sample
+    setContent("tab-dcf", `<div class="card" style="padding:30px;text-align:center">
+      <p style="color:#c0392b">Could not fetch data for <b>${ticker}</b>.</p>
+      <p style="font-size:12px;color:#888;margin-top:8px">Yahoo Finance API may be blocked in your browser due to CORS restrictions.</p>
+      <p style="font-size:12px;color:#888">Click <b>Load Sample TCS.NS</b> to see a working demo.</p>
+    </div>`);
+    return;
+  }
+
+  state.ticker = ticker;
+  state.result = result;
+  state.data = data;
+  state.fetchedData[ticker] = data;
+  state.researchReport = null;
+  state.mcResults = null;
+  $id("researchBtn").disabled = false;
+
+  // Store some extra data for relative val
+  state._relValData = { pe: { current: fin?.pe, pct: null }, pb: { current: fin?.pb, pct: null }, ps: { current: fin?.ps, pct: null }, ev_ebitda: { current: fin?.ev, pct: null } };
+  if (fin) {
+    data._pe = fin.pe != null ? fin.pe.toFixed(1) + 'x' : '--';
+    data._pb = fin.pb != null ? fin.pb.toFixed(1) + 'x' : '--';
+    data._ps = fin.ps != null ? fin.ps.toFixed(1) + 'x' : '--';
+    data._evEbitda = fin.ev != null ? fin.ev.toFixed(1) + 'x' : '--';
+  }
+
+  switchTab("DCF");
+}
+
+async function fetchFinancialDataWithMultiples(ticker) {
+  const data = await fetchYahoo(`/v10/finance/quoteSummary/${ticker}`, {
+    modules: "price,defaultKeyStatistics,financialData,cashflowStatementHistory,balanceSheetHistory,incomeStatementHistory"
+  });
+  const q = data?.quoteSummary?.result?.[0];
+  if (!q) throw new Error("No data");
+
+  const price = q.price?.regularMarketPrice?.raw || q.price?.regularMarketPreviousClose?.raw;
+  const shares = q.defaultKeyStatistics?.sharesOutstanding?.raw;
+  const beta = q.defaultKeyStatistics?.beta?.raw;
+  const marketCap = q.price?.marketCap?.raw;
+  const pe = q.defaultKeyStatistics?.trailingPE?.raw;
+  const pb = q.price?.bookValuePerShare?.raw ? price / q.price.bookValuePerShare.raw : null;
+  const ps = q.financialData?.priceToSalesTrailing12Months?.raw;
+  const ev = q.defaultKeyStatistics?.enterpriseToEbitda?.raw;
+
+  const bsSheet = q.balanceSheetHistory?.balanceSheetStatements?.[0];
+  const totalDebt = bsSheet?.totalDebt?.raw || 0;
+  const cash = bsSheet?.cash?.raw || 0;
+
+  const cfStatements = q.cashflowStatementHistory?.cashflowStatements || [];
+  const fcfs = cfStatements.map(s => {
+    const ocf = s.operatingCashFlow?.raw || 0;
+    const capex = s.capitalExpenditures?.raw || 0;
+    const yr = new Date(s.endDate?.raw * 1000).getFullYear();
+    return { year: yr, value: ocf + capex };
+  }).filter(f => f.value > 0).sort((a, b) => a.year - b.year);
+
+  if (fcfs.length < 3) throw new Error(`Need at least 3 years of FCF data, got ${fcfs.length}`);
+
+  return { price, shares, beta, marketCap, totalDebt, cash, fcfs, pe, pb, ps, ev };
+}
+
+function loadSampleData() {
+  const data = {
+    fcfs: SAMPLE_DATA.fcfs,
+    price: SAMPLE_DATA.price,
+    shares: SAMPLE_DATA.shares,
+    beta: SAMPLE_DATA.beta,
+    marketCap: SAMPLE_DATA.marketCap,
+    totalDebt: SAMPLE_DATA.totalDebt,
+    cash: SAMPLE_DATA.cash,
+    taxRate: TAX_RATE,
+    rfRate: RISK_FREE_RATE,
+    marketPremium: MARKET_PREMIUM,
+    projectionYears: 5,
+    terminalGrowthRate: DEFAULT_TERMINAL_G,
+    _pe: "17.1x",
+    _pb: "7.4x",
+    _ps: "3.2x",
+    _evEbitda: "11.3x",
+  };
+  const result = runDcf(data);
+
+  state.ticker = SAMPLE_DATA.ticker;
+  state.result = result;
+  state.data = data;
+  state.fetchedData[SAMPLE_DATA.ticker] = data;
+  state.researchReport = null;
+  state.mcResults = null;
+  state._relValData = {};
+  $id("tickerLabel").textContent = SAMPLE_DATA.ticker;
+  $id("researchBtn").disabled = false;
+  switchTab("DCF");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 18. INIT
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", () => {
+  buildTabs();
+  setContent("tab-dcf", '<div class="card text-center" style="padding:40px;color:#888">Enter a ticker and click <b>Calculate</b> to begin.</div>');
+  // Set placeholder content for other tabs
+  for (const name of TAB_NAMES.slice(1)) {
+    const id = "tab-" + name.toLowerCase().replace(/ /g, "");
+    const el = document.getElementById(id);
+    if (el && !el.innerHTML.trim()) el.innerHTML = '<div class="card text-center" style="padding:40px;color:#888">Run DCF first.</div>';
+  }
+
+  $id("calcBtn").addEventListener("click", async () => {
+    const val = $id("tickerInput").value.trim().toUpperCase();
+    if (!val) return;
+    $id("calcBtn").disabled = true;
+    $id("calcBtn").textContent = "Loading...";
+    await doCalculate(val);
+    $id("calcBtn").disabled = false;
+    $id("calcBtn").textContent = "Calculate";
+  });
+
+  $id("tickerInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") $id("calcBtn").click();
+  });
+
+  $id("sampleBtn").addEventListener("click", () => {
+    $id("tickerInput").value = "TCS";
+    loadSampleData();
+  });
+
+  $id("researchBtn").addEventListener("click", async () => {
+    if (!state.ticker) return;
+    $id("researchBtn").disabled = true;
+    $id("researchBtn").textContent = "Loading...";
+    try {
+      // Build research data from what we have
+      const report = {
+        profile: { name: state.ticker, sector: "--", industry: "--", employees: null, country: "India", website: null, description: null },
+        valuation: { pe_trailing: state.data?._pe ? parseFloat(state.data._pe) : null },
+        momentum: {},
+        margins: {},
+        health: {},
+        growth: {},
+      };
+      state.researchReport = report;
+      renderResearch(report);
+    } catch (e) {
+      console.error(e);
+    }
+    $id("researchBtn").disabled = false;
+    $id("researchBtn").textContent = "Research";
+  });
+
+  window.addEventListener("beforeunload", () => {
+    if (fcfChartInstance) fcfChartInstance.destroy();
+    if (mcChartInstance) mcChartInstance.destroy();
+  });
+});
+</script>
+</body>
+</html>
